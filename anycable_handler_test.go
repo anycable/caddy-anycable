@@ -41,11 +41,11 @@ func TestUnmarshalCaddyfile(t *testing.T) {
 				t.Errorf("Test case %d: Expected error: %v, but got: %v", i, tc.expectErr, err != nil)
 			}
 
-			if !tc.expectErr && len(h.options) != len(tc.expected) {
-				t.Fatalf("Expected %d options, got %d", len(tc.expected), len(h.options))
+			if !tc.expectErr && len(h.Options) != len(tc.expected) {
+				t.Fatalf("Expected %d options, got %d", len(tc.expected), len(h.Options))
 			}
 
-			for j, opt := range h.options {
+			for j, opt := range h.Options {
 				if opt != tc.expected[j] {
 					t.Errorf("Expected option %d to be '%s', but got '%s'", j, tc.expected[j], opt)
 				}
