@@ -18,7 +18,7 @@ func init() {
 
 type AnyCableHandler struct {
 	logger   *slog.Logger
-	options  []string
+	Options  []string
 	anycable *cli.Embedded
 	handler  http.Handler
 }
@@ -43,7 +43,7 @@ func (h AnyCableHandler) ServeHTTP(w http.ResponseWriter, r *http.Request, next 
 }
 
 func (h AnyCableHandler) runAnyCable() (*cli.Embedded, error) {
-	argsWithProg := append([]string{"anycable-go"}, h.options...)
+	argsWithProg := append([]string{"anycable-go"}, h.Options...)
 	c, err, _ := cli.NewConfigFromCLI(argsWithProg)
 	if err != nil {
 		return nil, err
@@ -74,7 +74,7 @@ func (h *AnyCableHandler) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 		for nesting := d.Nesting(); d.NextBlock(nesting); {
 			key := d.Val()
 			if d.NextArg() {
-				h.options = append(h.options, fmt.Sprintf("--%s=%s", key, d.Val()))
+				h.Options = append(h.Options, fmt.Sprintf("--%s=%s", key, d.Val()))
 			} else {
 				return d.Errf("expected 1 argument for %s but none provided", key)
 			}
