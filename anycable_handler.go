@@ -1,6 +1,7 @@
 package caddy_anycable
 
 import (
+	"context"
 	"fmt"
 	"github.com/anycable/anycable-go/cli"
 	"github.com/caddyserver/caddy/v2"
@@ -9,7 +10,10 @@ import (
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp"
 	"log/slog"
 	"net/http"
+	"time"
 )
+
+var caddyLogger = NewCaddyLogHandler()
 
 func init() {
 	caddy.RegisterModule(AnyCableHandler{})
@@ -40,6 +44,21 @@ func (h AnyCableHandler) ServeHTTP(w http.ResponseWriter, r *http.Request, next 
 	}
 
 	return next.ServeHTTP(w, r)
+}
+
+func (h *AnyCableHandler) Cleanup() error {
+	if h.anycable != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+		defer cancel()
+
+		err := h.anycable.Shutdown(ctx)
+		if err != nil {
+			h.logger.Error("Error shutting down AnyCable: ", err)
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (h AnyCableHandler) runAnyCable() (*cli.Embedded, error) {
@@ -87,13 +106,17 @@ func (h *AnyCableHandler) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 	return nil
 }
 
-func (h *AnyCableHandler) Provision(ctx caddy.Context) error {
+func (h *AnyCableHandler) Provision(_ caddy.Context) error {
+	logger := slog.New(caddyLogger)
+
+	h.logger = logger
 	anycable, err := h.runAnyCable()
 
 	if err != nil {
 		return err
 	}
 
+	h.anycable = anycable
 	h.handler, _ = anycable.WebSocketHandler()
 
 	return nil
