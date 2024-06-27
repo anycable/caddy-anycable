@@ -1,7 +1,7 @@
-# Caddy AnyCable Module
+# CaddyAnyCable Module
 ## Overview
 
-The Caddy AnyCable module integrates AnyCable with Caddy, enabling Caddy to handle WebSocket connections for [AnyCable](https://docs.anycable.io/) and proxy them to the AnyCable server. This is particularly useful for Ruby on Rails applications utilizing AnyCable for WebSocket connections in a production environment.
+The CaddyAnyCable module integrates AnyCable with Caddy v2, enabling Caddy to handle WebSocket connections for [AnyCable](https://docs.anycable.io/) and proxy them to the AnyCable server. This is particularly useful for Ruby on Rails applications utilizing AnyCable for WebSocket connections in a production environment.
 
 [Caddy](https://github.com/caddyserver/caddy) is a modern, open-source web server with a modular architecture that serves HTTP, HTTPS, and automatically obtains and renews TLS certificates.
 
