@@ -20,15 +20,27 @@ To use this module, you must build Caddy with the AnyCable module included. This
 2. **Compile Caddy with the `caddy-anycable` module:**
    Run the following command to build Caddy with the AnyCable module:
 
-```bash
-xcaddy build --with github.com/evilmartians/caddy_anycable
-```
+   ```bash
+   xcaddy build --with github.com/evilmartians/caddy_anycable
+   ```
+   This command will compile a caddy binary file that includes the AnyCable module.
+3. **Place the compiled Caddy binary and the Caddyfile in the same directory:**
+   Move the compiled caddy binary file and your Caddyfile to the desired directory. 
+4. **Run Caddy with the Caddyfile:**
+   If there is a file called Caddyfile in the current directory and no other configuration is specified, Caddy will load the Caddyfile, adapt it, and run it right away. Execute the following command to start Caddy:
+   
+   ```bash
+   ./caddy run
+   ```
+   
+   If your Caddyfile is located in a different directory, you can specify the path:
+   ```bash
+   ./caddy run --config /path/to/Caddyfile
+   ```
 
-This command will compile a caddy binary file that includes the AnyCable module.
-
+This process ensures that Caddy is running with the `AnyCable` module, and it will handle WebSocket connections as configured in your Caddyfile.
 
 ## Configuration
-
 
 ### Caddyfile Syntax
 
