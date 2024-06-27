@@ -1,11 +1,15 @@
 # CaddyAnyCable Module
+
 ## Overview
 
-The CaddyAnyCable module integrates AnyCable with Caddy v2, enabling Caddy to handle WebSocket connections for [AnyCable](https://docs.anycable.io/) and proxy them to the AnyCable server. This is particularly useful for Ruby on Rails applications utilizing AnyCable for WebSocket connections in a production environment.
+The CaddyAnyCable module integrates AnyCable with Caddy v2, enabling Caddy to handle WebSocket connections for [AnyCable](https://docs.anycable.io/) and proxy them to the AnyCable server. 
+
+This is particularly useful for Ruby on Rails applications utilizing AnyCable for WebSocket connections in a production environment.
 
 [Caddy](https://github.com/caddyserver/caddy) is a modern, open-source web server with a modular architecture that serves HTTP, HTTPS, and automatically obtains and renews TLS certificates.
 
 [AnyCable](https://docs.anycable.io/) provides a more efficient way to handle WebSocket connections in Ruby on Rails applications, allowing you to offload WebSocket handling from your Rails application server to AnyCable-Go.
+
 
 ## Installation
 
@@ -22,7 +26,9 @@ xcaddy build --with github.com/evilmartians/caddy_anycable
 
 This command will compile a caddy binary file that includes the AnyCable module.
 
+
 ## Configuration
+
 
 ### Caddyfile Syntax
 
@@ -44,6 +50,7 @@ Refer to the [AnyCable Configuration Documentation](https://docs.anycable.io/any
 
 In the anycable section of your Caddyfile, configure the settings directly corresponding to AnyCable configuration options, without the `--` prefix typically used in command-line settings.
 
+
 ### Full example
 
 Below is a complete example of a Caddyfile that integrates AnyCable:
@@ -64,7 +71,7 @@ http://localhost:3000 {
     }
 
     reverse_proxy @notStatic {
-        to localhost:3001
+        to localhost:3100
 
         header_up X-Real-IP {remote_host}
         header_up X-Forwarded-Proto {scheme}
@@ -79,7 +86,7 @@ http://localhost:3000 {
     anycable {
         broadcast_adapter http
         presets broker
-        rpc_host http://localhost:3001/_anycable
+        rpc_host http://localhost:3100/_anycable
         log_level debug
     }
 
@@ -87,8 +94,9 @@ http://localhost:3000 {
 }
 ```
 
-This Caddyfile sets up a proxy server on port 3000, which proxies requests to the backend server on port 3001. 
+This Caddyfile sets up a proxy server on port 3000, which proxies requests to the backend server on port 3100. 
 It also configures an AnyCable server that listens for WebSocket connections at the `/cable` URL.
+
 
 ## Usage
 Once configured, start Caddy with the Caddyfile. AnyCable-Go will handle WebSocket connections at the path `/cable`, and other requests will be managed according to other directives in your Caddyfile.
