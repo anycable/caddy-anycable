@@ -4,16 +4,23 @@ import (
 	"context"
 	"fmt"
 	"github.com/anycable/anycable-go/cli"
+	"github.com/anycable/anycable-go/config"
 	"github.com/caddyserver/caddy/v2"
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
 	"github.com/caddyserver/caddy/v2/caddyconfig/httpcaddyfile"
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp"
 	"log/slog"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 )
 
-var caddyLogger = NewCaddyLogHandler()
+var (
+	wsSkipUrlChecker  bool
+	sseSkipUrlChecker bool
+	caddyLogger       = NewCaddyLogHandler()
+)
 
 func init() {
 	caddy.RegisterModule(AnyCableHandler{})
@@ -21,10 +28,12 @@ func init() {
 }
 
 type AnyCableHandler struct {
-	logger   *slog.Logger
-	Options  []string
-	anycable *cli.Embedded
-	handler  http.Handler
+	logger     *slog.Logger
+	config     *config.Config
+	anycable   *cli.Embedded
+	wsHandler  http.Handler
+	sseHandler http.Handler
+	Options    []string
 }
 
 func (AnyCableHandler) CaddyModule() caddy.ModuleInfo {
@@ -35,12 +44,18 @@ func (AnyCableHandler) CaddyModule() caddy.ModuleInfo {
 }
 
 func (h AnyCableHandler) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
-	handler := h.handler
+	if h.config.SSE.Enabled {
+		if sseSkipUrlChecker || matchPath(h.config.SSE.Path, r.URL.Path) {
+			h.sseHandler.ServeHTTP(w, r)
+			return nil
+		}
+	}
 
-	if r.URL.Path == "/cable" {
-		handler.ServeHTTP(w, r)
-
-		return nil
+	for _, path := range h.config.Path {
+		if wsSkipUrlChecker || matchPath(path, r.URL.Path) {
+			h.wsHandler.ServeHTTP(w, r)
+			return nil
+		}
 	}
 
 	return next.ServeHTTP(w, r)
@@ -48,7 +63,7 @@ func (h AnyCableHandler) ServeHTTP(w http.ResponseWriter, r *http.Request, next 
 
 func (h *AnyCableHandler) Cleanup() error {
 	if h.anycable != nil {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(h.config.App.ShutdownTimeout)*time.Second)
 		defer cancel()
 
 		err := h.anycable.Shutdown(ctx)
@@ -61,13 +76,17 @@ func (h *AnyCableHandler) Cleanup() error {
 	return nil
 }
 
-func (h AnyCableHandler) runAnyCable() (*cli.Embedded, error) {
+func (h AnyCableHandler) initConfig() (*config.Config, error) {
 	argsWithProg := append([]string{"anycable-go"}, h.Options...)
 	c, err, _ := cli.NewConfigFromCLI(argsWithProg)
 	if err != nil {
 		return nil, err
 	}
 
+	return c, nil
+}
+
+func (h AnyCableHandler) runAnyCable() (*cli.Embedded, error) {
 	opts := []cli.Option{
 		cli.WithName("AnyCable"),
 		cli.WithDefaultRPCController(),
@@ -77,14 +96,12 @@ func (h AnyCableHandler) runAnyCable() (*cli.Embedded, error) {
 		cli.WithLogger(h.logger),
 	}
 
-	runner, err := cli.NewRunner(c, opts)
-
+	runner, err := cli.NewRunner(h.config, opts)
 	if err != nil {
 		return nil, err
 	}
 
 	anycable, err := runner.Embed()
-
 	return anycable, err
 }
 
@@ -93,12 +110,24 @@ func (h *AnyCableHandler) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 		for nesting := d.Nesting(); d.NextBlock(nesting); {
 			key := d.Val()
 			if d.NextArg() {
-				h.Options = append(h.Options, fmt.Sprintf("--%s=%s", key, d.Val()))
+				value := d.Val()
+				switch key {
+				case "ws_skip_url_checker":
+					if v, err := strconv.ParseBool(value); err == nil {
+						wsSkipUrlChecker = v
+					}
+				case "sse_skip_url_checker":
+					if v, err := strconv.ParseBool(value); err == nil {
+						sseSkipUrlChecker = v
+					}
+				default:
+					h.Options = append(h.Options, fmt.Sprintf("--%s=%s", key, value))
+				}
+				if d.NextArg() {
+					return d.Errf("expected only 1 argument for %s", key)
+				}
 			} else {
 				return d.Errf("expected 1 argument for %s but none provided", key)
-			}
-			if d.NextArg() {
-				return d.Errf("expected only 1 argument for %s", key)
 			}
 		}
 	}
@@ -106,18 +135,25 @@ func (h *AnyCableHandler) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 	return nil
 }
 
-func (h *AnyCableHandler) Provision(_ caddy.Context) error {
+func (h *AnyCableHandler) Provision(ctx caddy.Context) error {
 	logger := slog.New(caddyLogger)
-
 	h.logger = logger
-	anycable, err := h.runAnyCable()
 
+	cfg, err := h.initConfig()
+	if err != nil {
+		return err
+	}
+
+	h.config = cfg
+
+	anycable, err := h.runAnyCable()
 	if err != nil {
 		return err
 	}
 
 	h.anycable = anycable
-	h.handler, _ = anycable.WebSocketHandler()
+	h.wsHandler, _ = anycable.WebSocketHandler()
+	h.sseHandler, _ = anycable.SSEHandler(ctx)
 
 	return nil
 }
@@ -126,6 +162,14 @@ func parseCaddyfile(h httpcaddyfile.Helper) (caddyhttp.MiddlewareHandler, error)
 	var anyCable AnyCableHandler
 	err := anyCable.UnmarshalCaddyfile(h.Dispenser)
 	return anyCable, err
+}
+
+func matchPath(pattern, path string) bool {
+	if strings.HasSuffix(pattern, "*") {
+		prefix := strings.TrimSuffix(pattern, "*")
+		return strings.HasPrefix(path, prefix)
+	}
+	return pattern == path
 }
 
 var (
