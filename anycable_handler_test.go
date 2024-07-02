@@ -23,8 +23,6 @@ func TestUnmarshalCaddyfile(t *testing.T) {
 			input: `anycable {
                 log_level debug
                 redis_url redis://localhost:6379/5
-                ws_skip_url_checker true
-                sse_skip_url_checker false
             }`,
 			expectErr:    false,
 			expectedOpts: []string{"--log_level=debug", "--redis_url=redis://localhost:6379/5"},
@@ -58,14 +56,6 @@ func TestUnmarshalCaddyfile(t *testing.T) {
 					if opt != tc.expectedOpts[j] {
 						t.Errorf("Expected option %d to be '%s', but got '%s'", j, tc.expectedOpts[j], opt)
 					}
-				}
-
-				if wsSkipUrlChecker != tc.expectedWS {
-					t.Errorf("Expected wsSkipUrlChecker to be '%v', but got '%v'", tc.expectedWS, wsSkipUrlChecker)
-				}
-
-				if sseSkipUrlChecker != tc.expectedSSE {
-					t.Errorf("Expected sseSkipUrlChecker to be '%v', but got '%v'", tc.expectedSSE, sseSkipUrlChecker)
 				}
 			}
 		})
@@ -119,29 +109,10 @@ func TestServeHTTP(t *testing.T) {
 			expectedCode: http.StatusOK,
 			expectedNext: true,
 		},
-		{
-			name:         "WebSocket path",
-			path:         "/different_url",
-			expectedBody: "WebSocket handler response",
-			expectedCode: http.StatusOK,
-			expectedNext: false,
-			skipWSCheck:  true,
-		},
-		{
-			name:         "SSE path",
-			path:         "/different_sse_url",
-			expectedBody: "SSE handler response",
-			expectedCode: http.StatusOK,
-			expectedNext: false,
-			skipSSECheck: true,
-		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			wsSkipUrlChecker = tc.skipWSCheck
-			sseSkipUrlChecker = tc.skipSSECheck
-
 			recorder := httptest.NewRecorder()
 			request, _ := http.NewRequest("GET", tc.path, nil)
 
