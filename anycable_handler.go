@@ -11,16 +11,11 @@ import (
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp"
 	"log/slog"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 )
 
-var (
-	wsSkipUrlChecker  bool
-	sseSkipUrlChecker bool
-	caddyLogger       = NewCaddyLogHandler()
-)
+var caddyLogger = NewCaddyLogHandler()
 
 func init() {
 	caddy.RegisterModule(AnyCableHandler{})
@@ -45,14 +40,14 @@ func (AnyCableHandler) CaddyModule() caddy.ModuleInfo {
 
 func (h AnyCableHandler) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
 	if h.config.SSE.Enabled {
-		if sseSkipUrlChecker || matchPath(h.config.SSE.Path, r.URL.Path) {
+		if matchPath(h.config.SSE.Path, r.URL.Path) {
 			h.sseHandler.ServeHTTP(w, r)
 			return nil
 		}
 	}
 
 	for _, path := range h.config.Path {
-		if wsSkipUrlChecker || matchPath(path, r.URL.Path) {
+		if matchPath(path, r.URL.Path) {
 			h.wsHandler.ServeHTTP(w, r)
 			return nil
 		}
@@ -110,19 +105,8 @@ func (h *AnyCableHandler) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 		for nesting := d.Nesting(); d.NextBlock(nesting); {
 			key := d.Val()
 			if d.NextArg() {
-				value := d.Val()
-				switch key {
-				case "ws_skip_url_checker":
-					if v, err := strconv.ParseBool(value); err == nil {
-						wsSkipUrlChecker = v
-					}
-				case "sse_skip_url_checker":
-					if v, err := strconv.ParseBool(value); err == nil {
-						sseSkipUrlChecker = v
-					}
-				default:
-					h.Options = append(h.Options, fmt.Sprintf("--%s=%s", key, value))
-				}
+				h.Options = append(h.Options, fmt.Sprintf("--%s=%s", key, d.Val()))
+
 				if d.NextArg() {
 					return d.Errf("expected only 1 argument for %s", key)
 				}

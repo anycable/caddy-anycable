@@ -74,26 +74,7 @@ You can enable [SSE mode](https://docs.anycable.io/anycable-go/sse) by adding th
 ```
 
 You can also change the [WebSocket's path](https://docs.anycable.io/anycable-go/configuration?id=primary-settings) and [SSE's path](https://docs.anycable.io/anycable-go/sse?id=configuration) by setting the `path` and `sse_path` options in the block.
-
-If you want to add an anycable block to the Caddy handle directive to resolve specific addresses, you can do so like this:
-
-```caddyfile
-   handle_path /websocket {
-       anycable {
-           broadcast_adapter http
-           presets broker
-           rpc_host http://localhost:3100/_anycable
-           ws_skip_url_checker true
-           port 3000
-       }
-   }
-```
-
-**`ws_skip_url_checker`**:
-When you use the handle or route directives with specific paths, you might want to disable the additional URL checking that AnyCable performs. 
-You can do this by setting the `ws_skip_url_checker` option to true.
-
-More about handle and handle_path directive is in the [Caddy documentation](https://caddyserver.com/docs/caddyfile/directives/handle_path)
+The default websocket path is `/cable`. The default SSE path is `/events`.
 
 ### Full example
 
